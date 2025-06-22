@@ -2,7 +2,7 @@ FROM docker.elastic.co/elasticsearch/elasticsearch:9.0.0
 
 ENV discovery.type=single-node
 ENV xpack.security.enabled=false
-ENV ES_JAVA_OPTS=-Xms64m -Xmx64m
+ENV ES_JAVA_OPTS="-Xms64m -Xmx64m"
 ENV cluster.routing.allocation.disk.threshold_enabled=false
 ENV bootstrap.memory_lock=false
 ENV cluster.name=docker-cluster
