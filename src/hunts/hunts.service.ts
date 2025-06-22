@@ -43,23 +43,7 @@ export class HuntsService {
   }
 
   async addBonus(dto: BonusDto) {
-    const hunt = await this.findActive();
-    if (!hunt) return `No hunt available`;
-    const slot = await this.slotsService.query(dto.slot);
-    if (!slot) return `No slot found for query '${dto.slot}'`;
-    const value = dto.value || 100;
-    await this.bonusesRepository.insert({
-      hunt,
-      slot,
-      bet: {
-        amount: dto.bet,
-        currency: dto.currency,
-      },
-      notes: dto.notes,
-      value,
-    });
-
-    return `Added \`${slot.name} - ${dto.currency} ${dto.bet} - (${value}x)\``;
+    return '!';
   }
 
   findAll() {
