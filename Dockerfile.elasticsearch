@@ -1,0 +1,22 @@
+FROM docker.elastic.co/elasticsearch/elasticsearch:9.0.0
+
+ENV discovery.type=single-node
+ENV xpack.security.enabled=false
+ENV ES_JAVA_OPTS=-Xms64m -Xmx64m
+ENV cluster.routing.allocation.disk.threshold_enabled=false
+ENV bootstrap.memory_lock=false
+ENV cluster.name=docker-cluster
+ENV network.host=0.0.0.0
+ENV http.port=9200
+ENV indices.memory.index_buffer_size=5%
+ENV indices.queries.cache.size=2%
+ENV thread_pool.write.size=1
+ENV thread_pool.write.queue_size=50
+ENV thread_pool.search.size=1
+ENV thread_pool.search.queue_size=50
+ENV indices.fielddata.cache.size=1%
+ENV indices.breaker.fielddata.limit=5%
+ENV indices.breaker.total.limit=10%
+
+EXPOSE 9200
+
