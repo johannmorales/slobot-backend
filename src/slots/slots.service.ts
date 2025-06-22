@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  OnApplicationBootstrap,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { CreateSlotDto } from './dto/create-slot.dto';
 import { UpdateSlotDto } from './dto/update-slot.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -19,24 +14,12 @@ export class SlotsService implements OnModuleInit {
   constructor(
     @InjectRepository(Slot)
     private slotsRepository: Repository<Slot>,
-    private readonly elasticsearchService: ElasticsearchService,
     private tasksService: TasksService,
   ) {}
 
   async onModuleInit() {
     // Clean up existing null imageUrl values
 
-    await this.elasticsearchService.indices.delete({ index: 'slots' });
-    await this.elasticsearchService.indices.create({
-      index: 'slots',
-      mappings: {
-        properties: {
-          name: {
-            type: 'text',
-          },
-        },
-      },
-    });
     // const slots = await this.slotsRepository.find();
     // const body = slots.flatMap((slot) => [
     //   { index: { _index: 'slots', _id: slot.id } },
@@ -46,21 +29,6 @@ export class SlotsService implements OnModuleInit {
     //here!!
     this.tasksService.registerDailyTask('SlotsSync', async () => {
       // await this.elasticsearchService.indices.delete({ index: 'slots' });
-      const indexExists = await this.elasticsearchService.indices.exists({
-        index: 'slots',
-      });
-      if (!indexExists) {
-        await this.elasticsearchService.indices.create({
-          index: 'slots',
-          mappings: {
-            properties: {
-              name: {
-                type: 'text',
-              },
-            },
-          },
-        });
-      }
       const number = await gamesCount({ sectionType: 'slots' });
       const pages = Math.floor(number / 100) + 1;
       for (let i = 0; i < pages; i++) {
@@ -96,13 +64,6 @@ export class SlotsService implements OnModuleInit {
             id: item.id,
             ...slots[item.index],
           }));
-        if (newSlots.length > 0) {
-          const body = newSlots.flatMap((slot) => [
-            { index: { _index: 'slots', _id: slot.id } },
-            { name: slot.name },
-          ]);
-          await this.elasticsearchService.bulk({ body });
-        }
         this.logger.log(
           `Added ${newSlots.length} slots => ${newSlots.map((slot) => `${slot.id} ${slot.name}`).join(', ')}`,
         );
@@ -130,30 +91,7 @@ export class SlotsService implements OnModuleInit {
   }
 
   async query(q: string) {
-    const { hits } = await this.elasticsearchService.search<
-      string,
-      { name: string }
-    >({
-      index: 'slots',
-      query: {
-        match: {
-          name: {
-            query: q,
-            fuzziness: 'AUTO',
-          },
-        },
-      },
-    });
-
-    const hit = hits.hits.find((hit) => hit._id!);
-
-    if (!hit) return null;
-
-    console.log('HIT', hit);
-
-    return await this.slotsRepository.findOneBy({
-      id: Number.parseInt(hit._id!),
-    });
+    return null;
   }
 
   findOne(id: number) {

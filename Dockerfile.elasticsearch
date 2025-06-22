@@ -7,7 +7,7 @@ ENV cluster.routing.allocation.disk.threshold_enabled=false
 ENV bootstrap.memory_lock=false
 ENV cluster.name=docker-cluster
 ENV network.host=0.0.0.0
-ENV http.port=10000
+ENV http.port=${PORT:-10000}
 ENV indices.memory.index_buffer_size=5%
 ENV indices.queries.cache.size=2%
 ENV thread_pool.write.size=1
@@ -18,5 +18,12 @@ ENV indices.fielddata.cache.size=1%
 ENV indices.breaker.fielddata.limit=5%
 ENV indices.breaker.total.limit=10%
 
-EXPOSE 10000
+# Health check for Fly.io
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:${PORT:-10000}/ || exit 1
+
+EXPOSE ${PORT:-10000}
+
+# Use the default Elasticsearch entrypoint
+CMD ["/usr/local/bin/docker-entrypoint.sh"]
 

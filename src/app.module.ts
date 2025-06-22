@@ -5,7 +5,6 @@ import { AppService } from './app.service';
 import { SlotsModule } from './slots/slots.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HuntsModule } from './hunts/hunts.module';
-import { ElasticModule } from './elastic/elastic.module';
 import { DiscordModule } from './discord/discord.module';
 import { TasksModule } from './tasks/tasks.module';
 import { getDatabaseConfig } from './config/database.config';
@@ -15,7 +14,6 @@ import { getDatabaseConfig } from './config/database.config';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    ElasticModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) =>
