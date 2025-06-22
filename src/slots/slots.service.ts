@@ -76,7 +76,7 @@ export class SlotsService implements OnModuleInit {
   }
 
   async findAll() {
-    return await this.slotsRepository.find({
+    const slots = await this.slotsRepository.find({
       where: [
         'Nolimit City',
         'Relax Gaming',
@@ -88,6 +88,15 @@ export class SlotsService implements OnModuleInit {
         // 'Bgaming',
       ].map((name) => ({ provider: name })),
     });
+
+    return slots.map((slot) => ({
+      id: slot.id,
+      name: slot.name,
+      provider: slot.provider,
+      imageUrl: slot.imageUrl,
+      url: slot.url,
+      releaseDate: slot.releaseDate,
+    }));
   }
 
   async query(q: string) {
