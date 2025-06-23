@@ -23,18 +23,4 @@ export class BonusCommand {
     private readonly client: Client,
     private readonly huntsService: HuntsService,
   ) {}
-
-  @Handler()
-  async onBonus(
-    @IA(SlashCommandPipe) options: BonusDto,
-    @IA() interaction: CommandInteraction,
-  ) {
-    await interaction.deferReply({
-      flags: MessageFlags.Ephemeral,
-    });
-    await interaction.followUp({
-      content: await this.huntsService.addBonus(options),
-      flags: MessageFlags.Ephemeral,
-    });
-  }
 }

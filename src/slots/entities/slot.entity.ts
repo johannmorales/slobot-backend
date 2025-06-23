@@ -34,6 +34,10 @@ export class Slot {
   @Column({ type: 'text', nullable: true })
   originalJson: string;
 
+  @Column({ type: 'tsvector', nullable: true })
+  @Index('idx_slot_search_vector', { synchronize: false })
+  searchVector: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

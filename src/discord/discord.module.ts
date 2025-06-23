@@ -3,7 +3,6 @@ import { DiscordModule as NestJsDiscordModule } from '@discord-nestjs/core';
 import { GatewayIntentBits } from 'discord.js';
 import { ConfigService } from '@nestjs/config';
 import { DiscordGateway } from './discord.gateway';
-import { BonusCommand } from './commands/bonus.command';
 import { HuntsModule } from 'src/hunts/hunts.module';
 import { HuntCommand } from './commands/hunt.command';
 import { ListCommand } from './commands/list.command';
@@ -29,6 +28,6 @@ import { ListCommand } from './commands/list.command';
     }),
     HuntsModule,
   ],
-  providers: [DiscordGateway, BonusCommand, HuntCommand, ListCommand],
+  providers: [DiscordGateway, HuntCommand, ListCommand],
 })
 export class DiscordModule {}

@@ -5,13 +5,10 @@ import { Hunt } from './entities/hunt.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SlotsModule } from 'src/slots/slots.module';
 import { Bonus } from './entities/bonus.entity';
+import { Slot } from 'src/slots/entities/slot.entity';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Hunt]),
-    TypeOrmModule.forFeature([Bonus]),
-    SlotsModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Hunt, Bonus, Slot]), SlotsModule],
   controllers: [HuntsController],
   providers: [HuntsService],
   exports: [HuntsService],

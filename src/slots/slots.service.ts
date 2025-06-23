@@ -1,12 +1,10 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { CreateSlotDto } from './dto/create-slot.dto';
-import { UpdateSlotDto } from './dto/update-slot.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Slot } from './entities/slot.entity';
-import { Or, Repository, IsNull } from 'typeorm';
+import { Repository } from 'typeorm';
 import { gamesCount, gamesList } from 'gamdom.js';
-import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { TasksService } from 'src/tasks/tasks.service';
+import { SearchResult } from './types/search.types';
 
 @Injectable()
 export class SlotsService implements OnModuleInit {
@@ -17,7 +15,7 @@ export class SlotsService implements OnModuleInit {
     private tasksService: TasksService,
   ) {}
 
-  async onModuleInit() {
+  onModuleInit() {
     // Clean up existing null imageUrl values
 
     // const slots = await this.slotsRepository.find();
@@ -67,12 +65,45 @@ export class SlotsService implements OnModuleInit {
         this.logger.log(
           `Added ${newSlots.length} slots => ${newSlots.map((slot) => `${slot.id} ${slot.name}`).join(', ')}`,
         );
+
+        // Update search vectors for new slots
+        if (newSlots.length > 0) {
+          await this.updateSearchVectors(newSlots.map((slot) => slot.id));
+        }
       }
     });
   }
 
-  create(createSlotDto: CreateSlotDto) {
-    return 'This action adds a new slodt';
+  private async updateSearchVectors(slotIds: number[]) {
+    try {
+      await this.slotsRepository.query(
+        `
+        UPDATE slot 
+        SET search_vector = to_tsvector('english', name)
+        WHERE id = ANY($1)
+      `,
+        [slotIds],
+      );
+    } catch (error) {
+      this.logger.error('Failed to update search vectors:', error);
+    }
+  }
+
+  async updateAllSearchVectors() {
+    try {
+      await this.slotsRepository.query(`
+        UPDATE slot 
+        SET search_vector = to_tsvector('english', name)
+        WHERE search_vector IS NULL OR search_vector = ''
+      `);
+      this.logger.log('All search vectors updated successfully');
+    } catch (error) {
+      this.logger.error('Failed to update all search vectors:', error);
+    }
+  }
+
+  create() {
+    return 'This action adds a new slot';
   }
 
   async findAll() {
@@ -80,13 +111,16 @@ export class SlotsService implements OnModuleInit {
       where: [
         'Nolimit City',
         'Relax Gaming',
-        // 'Just Slots',
+        'Just Slots',
         // 'Bullshark Games',
         'Hacksaw Gaming',
         'ShadyLady',
         'Pragmatic Play',
-        // 'Bgaming',
+        'Bgaming',
       ].map((name) => ({ provider: name })),
+      order: {
+        releaseDate: 'DESC',
+      },
     });
 
     return slots.map((slot) => ({
@@ -99,16 +133,40 @@ export class SlotsService implements OnModuleInit {
     }));
   }
 
-  async query(q: string) {
-    return null;
+  async query(q: string): Promise<SearchResult[]> {
+    if (!q || q.trim().length < 3) {
+      return [];
+    }
+
+    try {
+      const slots = await this.slotsRepository
+        .createQueryBuilder('slot')
+        .where(`slot.search_vector @@ plainto_tsquery('english', :query)`)
+        .setParameter('query', q)
+        .orderBy(
+          `ts_rank(slot.search_vector, plainto_tsquery('english', :query))`,
+          'DESC',
+        )
+        .addOrderBy('slot.releaseDate', 'DESC')
+        .limit(10)
+        .getMany();
+
+      return slots.map((slot) => ({
+        id: slot.id,
+        name: slot.name,
+        provider: slot.provider,
+        imageUrl: slot.imageUrl,
+        url: slot.url,
+        releaseDate: slot.releaseDate,
+      }));
+    } catch (error) {
+      this.logger.error('Search query failed:', error);
+      return [];
+    }
   }
 
   findOne(id: number) {
     return `This action returns a #${id} slot`;
-  }
-
-  update(id: number, updateSlotDto: UpdateSlotDto) {
-    return `This action updates a #${id} slot`;
   }
 
   remove(id: number) {

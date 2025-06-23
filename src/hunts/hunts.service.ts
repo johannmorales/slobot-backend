@@ -1,11 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Hunt } from './entities/hunt.entity';
 import { Repository } from 'typeorm';
 import { SlotsService } from 'src/slots/slots.service';
-import { BonusDto } from 'src/discord/commands/bonus.dto';
 import { Bonus, BonusStatus } from './entities/bonus.entity';
 import { ReorderBonusesDto } from './dto/reorder-bonuses.dto';
+import { AddBonusDto } from './dto/add-bonus.dto';
+import { Slot } from 'src/slots/entities/slot.entity';
 
 @Injectable()
 export class HuntsService {
@@ -14,6 +15,8 @@ export class HuntsService {
     private huntsRepository: Repository<Hunt>,
     @InjectRepository(Bonus)
     private bonusesRepository: Repository<Bonus>,
+    @InjectRepository(Slot)
+    private slotsRepository: Repository<Slot>,
     private readonly slotsService: SlotsService,
   ) {}
 
@@ -40,10 +43,6 @@ export class HuntsService {
           `${bonus.slot.name} ${bonus.bet.amount} ${bonus.bet.currency}`,
       )
       .join('\n');
-  }
-
-  async addBonus(dto: BonusDto) {
-    return '!';
   }
 
   findAll() {
@@ -131,5 +130,68 @@ export class HuntsService {
     await this.bonusesRepository.update(bonusId, { status });
 
     return { message: 'Bonus status updated successfully' };
+  }
+
+  async addBonusToHunt(huntId: number, addBonusDto: AddBonusDto) {
+    // Find the hunt
+    const hunt = await this.huntsRepository.findOne({
+      where: { id: huntId },
+    });
+
+    if (!hunt) {
+      throw new NotFoundException(`Hunt with id ${huntId} not found`);
+    }
+
+    // Find the slot
+    const slot = await this.slotsRepository.findOne({
+      where: { id: addBonusDto.slotId },
+    });
+
+    if (!slot) {
+      throw new NotFoundException(
+        `Slot with id ${addBonusDto.slotId} not found`,
+      );
+    }
+
+    // Get the next order index for this hunt
+    const maxOrderIndexResult = await this.bonusesRepository
+      .createQueryBuilder('bonus')
+      .where('bonus.hunt.id = :huntId', { huntId })
+      .select('MAX(bonus.orderIndex)', 'maxOrder')
+      .getRawOne<{ maxOrder: number | null }>();
+
+    const nextOrderIndex = (maxOrderIndexResult?.maxOrder || -1) + 1;
+
+    // Create the bonus
+    const bonus = this.bonusesRepository.create({
+      hunt,
+      slot,
+      value: addBonusDto.value,
+      bet: {
+        amount: parseFloat(addBonusDto.betAmount),
+        currency: addBonusDto.currency,
+      },
+      notes: addBonusDto.notes,
+      orderIndex: nextOrderIndex,
+      status: BonusStatus.PENDING,
+    });
+
+    const savedBonus = await this.bonusesRepository.save(bonus);
+
+    return {
+      id: savedBonus.id,
+      slot: {
+        id: slot.id,
+        name: slot.name,
+        provider: slot.provider,
+        imageUrl: slot.imageUrl,
+      },
+      value: savedBonus.value,
+      bet: savedBonus.bet,
+      notes: savedBonus.notes,
+      orderIndex: savedBonus.orderIndex,
+      status: savedBonus.status,
+      createdAt: savedBonus.createdAt,
+    };
   }
 }

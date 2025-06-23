@@ -11,6 +11,7 @@ import {
 import { HuntsService } from './hunts.service';
 import { ReorderBonusesDto } from './dto/reorder-bonuses.dto';
 import { UpdateBonusStatusDto } from './dto/update-bonus-status.dto';
+import { AddBonusDto } from './dto/add-bonus.dto';
 
 @Controller('hunts')
 export class HuntsController {
@@ -65,5 +66,13 @@ export class HuntsController {
       +bonusId,
       updateStatusDto.status,
     );
+  }
+
+  @Post(':huntId/bonuses')
+  addBonusToHunt(
+    @Param('huntId') huntId: string,
+    @Body() addBonusDto: AddBonusDto,
+  ) {
+    return this.huntsService.addBonusToHunt(+huntId, addBonusDto);
   }
 }

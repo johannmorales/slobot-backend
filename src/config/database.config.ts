@@ -6,18 +6,20 @@ import { ConfigService } from '@nestjs/config';
 export const getDatabaseConfig = (
   configService: ConfigService,
 ): TypeOrmModuleOptions => {
-  // Check if DATABASE_URL is provided (connection string)
-  const databaseUrl = configService.get<string>('DATABASE_URL');
+  const isProduction = configService.get<string>('NODE_ENV') === 'production';
+
   return {
     type: 'postgres',
-    url: databaseUrl,
+    url: configService.get<string>('DATABASE_URL'),
     schema: 'public',
     namingStrategy: new SnakeNamingStrategy(),
     entities: [join(__dirname, '..', '**', '*.entity.{js,ts}')],
-    synchronize: configService.get<string>('NODE_ENV') !== 'production',
-    logging: configService.get<string>('NODE_ENV') !== 'production',
-    ssl: {
-      rejectUnauthorized: false,
-    },
+    synchronize: !isProduction,
+    logging: !isProduction,
+    ...(isProduction && {
+      ssl: {
+        rejectUnauthorized: false,
+      },
+    }),
   };
 };
