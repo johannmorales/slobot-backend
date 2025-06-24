@@ -19,7 +19,7 @@ export enum BonusStatus {
 export class Bonus {
   @PrimaryGeneratedColumn()
   id: number;
-  @ManyToOne(() => Slot)
+  @ManyToOne(() => Slot, { eager: false })
   slot: Slot;
   @ManyToOne(() => Hunt, { eager: false })
   hunt: Hunt;

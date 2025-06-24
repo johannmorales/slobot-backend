@@ -6,11 +6,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { SlotsModule } from 'src/slots/slots.module';
 import { Bonus } from './entities/bonus.entity';
 import { Slot } from 'src/slots/entities/slot.entity';
+import { HuntsSseService } from './hunts-sse.service';
+import { HuntsSseController } from './hunts-sse.controller';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Hunt, Bonus, Slot]), SlotsModule],
-  controllers: [HuntsController],
-  providers: [HuntsService],
+  controllers: [HuntsController, HuntsSseController],
+  providers: [HuntsService, HuntsSseService],
   exports: [HuntsService],
 })
 export class HuntsModule {}

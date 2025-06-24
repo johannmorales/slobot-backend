@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  forwardRef,
+  Inject,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Hunt } from './entities/hunt.entity';
 import { Repository } from 'typeorm';
@@ -7,6 +12,7 @@ import { Bonus, BonusStatus } from './entities/bonus.entity';
 import { ReorderBonusesDto } from './dto/reorder-bonuses.dto';
 import { AddBonusDto } from './dto/add-bonus.dto';
 import { Slot } from 'src/slots/entities/slot.entity';
+import { HuntsSseService } from './hunts-sse.service';
 
 @Injectable()
 export class HuntsService {
@@ -18,6 +24,8 @@ export class HuntsService {
     @InjectRepository(Slot)
     private slotsRepository: Repository<Slot>,
     private readonly slotsService: SlotsService,
+    @Inject(forwardRef(() => HuntsSseService))
+    private readonly huntsSseService: HuntsSseService,
   ) {}
 
   async create(discordChannelId: string) {
@@ -36,7 +44,7 @@ export class HuntsService {
   }
 
   async currentString() {
-    const hunt = (await this.findActive())!;
+    const hunt = await this.findActive();
     return hunt.bonuses
       .map(
         (bonus) =>
@@ -53,25 +61,14 @@ export class HuntsService {
     const hunt = await this.huntsRepository.findOne({
       where: {
         isActive: true,
-        // bonuses: {
-        //   status: BonusStatus.PENDING,
-        // },
-      },
-      relations: {
-        bonuses: {
-          slot: true,
-        },
-      },
-      order: {
-        bonuses: {
-          orderIndex: 'ASC',
-        },
       },
     });
 
-    // hunt?.bonuses.sort((a, b) => Number.parseInt(a.id) - Number.parseInt(b.id));
-    // hunt?.bonuses.sort((a, b) => a.bet.amount - b.bet.amount);
-    return hunt;
+    if (!hunt) {
+      throw new Error('No active hunt found');
+    }
+
+    return { ...hunt, bonuses: [] as any };
   }
 
   findOne(id: number) {
@@ -110,6 +107,9 @@ export class HuntsService {
       .andWhere('id IN (:...bonusIds)', { bonusIds: reorderDto.bonusIds })
       .execute();
 
+    // Emit SSE event with updated bonuses
+    await this.huntsSseService.emitHuntBonusesUpdate(huntId);
+
     return { message: 'Bonuses reordered successfully' };
   }
 
@@ -128,6 +128,9 @@ export class HuntsService {
     }
 
     await this.bonusesRepository.update(bonusId, { status });
+
+    // Emit SSE event with updated bonuses
+    await this.huntsSseService.emitHuntBonusesUpdate(huntId);
 
     return { message: 'Bonus status updated successfully' };
   }
@@ -178,6 +181,9 @@ export class HuntsService {
 
     const savedBonus = await this.bonusesRepository.save(bonus);
 
+    // Emit SSE event with updated bonuses
+    await this.huntsSseService.emitHuntBonusesUpdate(huntId);
+
     return {
       id: savedBonus.id,
       slot: {
@@ -193,5 +199,78 @@ export class HuntsService {
       status: savedBonus.status,
       createdAt: savedBonus.createdAt,
     };
+  }
+
+  async getPendingBonuses(huntId: number) {
+    const hunt = await this.huntsRepository.findOne({
+      where: { id: huntId },
+    });
+
+    if (!hunt) {
+      throw new NotFoundException(`Hunt with id ${huntId} not found`);
+    }
+
+    const pendingBonuses = await this.bonusesRepository.find({
+      where: {
+        hunt: { id: huntId },
+        status: BonusStatus.PENDING,
+      },
+      relations: {
+        slot: true,
+      },
+      order: {
+        orderIndex: 'ASC',
+      },
+    });
+
+    return pendingBonuses.map((bonus) => ({
+      id: bonus.id,
+      slot: {
+        id: bonus.slot.id,
+        name: bonus.slot.name,
+        provider: bonus.slot.provider,
+        imageUrl: bonus.slot.imageUrl,
+        url: bonus.slot.url,
+      },
+      value: bonus.value,
+      bet: bonus.bet,
+      notes: bonus.notes,
+    }));
+  }
+
+  async getAllBonusesForHunt(huntId: number) {
+    const hunt = await this.huntsRepository.findOne({
+      where: { id: huntId },
+    });
+
+    if (!hunt) {
+      throw new Error(`Hunt with id ${huntId} not found`);
+    }
+
+    const bonuses = await this.bonusesRepository.find({
+      where: {
+        hunt: { id: huntId },
+      },
+      relations: {
+        slot: true,
+      },
+      order: {
+        orderIndex: 'ASC',
+      },
+    });
+
+    return bonuses.map((bonus) => ({
+      id: bonus.id,
+      slot: {
+        id: bonus.slot.id,
+        name: bonus.slot.name,
+        provider: bonus.slot.provider,
+        imageUrl: bonus.slot.imageUrl,
+        url: bonus.slot.url,
+      },
+      value: bonus.value,
+      bet: bonus.bet,
+      notes: bonus.notes,
+    }));
   }
 }

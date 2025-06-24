@@ -68,6 +68,16 @@ export class HuntsController {
     );
   }
 
+  @Get(':huntId/bonuses/pending')
+  getPendingBonuses(@Param('huntId') huntId: string) {
+    return this.huntsService.getPendingBonuses(+huntId);
+  }
+
+  @Get(':huntId/bonuses')
+  getAllBonuses(@Param('huntId') huntId: string) {
+    return this.huntsService.getAllBonusesForHunt(+huntId);
+  }
+
   @Post(':huntId/bonuses')
   addBonusToHunt(
     @Param('huntId') huntId: string,
