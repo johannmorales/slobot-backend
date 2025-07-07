@@ -11,8 +11,10 @@ import { SlotsService } from 'src/slots/slots.service';
 import { Bonus, BonusStatus } from './entities/bonus.entity';
 import { ReorderBonusesDto } from './dto/reorder-bonuses.dto';
 import { AddBonusDto } from './dto/add-bonus.dto';
+import { CreateHuntDto } from './dto/create-hunt.dto';
 import { Slot } from 'src/slots/entities/slot.entity';
 import { HuntsSseService } from './hunts-sse.service';
+import { PaginationDto, PaginatedHuntsResponse } from './dto/pagination.dto';
 
 @Injectable()
 export class HuntsService {
@@ -28,7 +30,11 @@ export class HuntsService {
     private readonly huntsSseService: HuntsSseService,
   ) {}
 
-  async create(discordChannelId: string) {
+  async create(createHuntDto: CreateHuntDto) {
+    // For now, we'll use a default discord channel ID since it's required
+    // In a real application, you might want to get this from the request context
+    const discordChannelId = 'default-channel';
+
     await this.huntsRepository.update(
       {
         discordChannelId,
@@ -37,24 +43,56 @@ export class HuntsService {
         isActive: false,
       },
     );
-    await this.huntsRepository.insert({
+
+    const hunt = await this.huntsRepository.insert({
+      name: createHuntDto.name,
       discordChannelId,
       isActive: true,
     });
+
+    return hunt;
   }
 
   async currentString() {
     const hunt = await this.findActive();
-    return hunt.bonuses
-      .map(
-        (bonus) =>
-          `${bonus.slot.name} ${bonus.bet.amount} ${bonus.bet.currency}`,
-      )
-      .join('\n');
+    return (
+      hunt.bonuses
+        ?.map(
+          (bonus) =>
+            `${bonus.slot?.name || 'Unknown'} ${bonus.bet?.amount || 0} ${bonus.bet?.currency || 'USD'}`,
+        )
+        .join('\n') || ''
+    );
   }
 
-  findAll() {
-    return `This action returns all hunts`;
+  async findAll(paginationDto: PaginationDto): Promise<PaginatedHuntsResponse> {
+    const { page = 1, pageSize = 10 } = paginationDto;
+    const skip = (page - 1) * pageSize;
+
+    const [hunts, total] = await this.huntsRepository.findAndCount({
+      relations: {
+        bonuses: {
+          slot: true,
+        },
+      },
+      order: {
+        createdAt: 'DESC',
+        bonuses: {
+          orderIndex: 'ASC',
+        },
+      },
+      skip,
+      take: pageSize,
+    });
+
+    return {
+      data: hunts,
+      pagination: {
+        page,
+        pageSize,
+        total,
+      },
+    };
   }
 
   async findActive() {
@@ -62,13 +100,18 @@ export class HuntsService {
       where: {
         isActive: true,
       },
+      relations: {
+        bonuses: {
+          slot: true,
+        },
+      },
     });
 
     if (!hunt) {
       throw new Error('No active hunt found');
     }
 
-    return { ...hunt, bonuses: [] as any };
+    return hunt;
   }
 
   findOne(id: number) {

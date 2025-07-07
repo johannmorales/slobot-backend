@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Param, Delete, Query } from '@nestjs/common';
 import { SlotsService } from './slots.service';
 import { SearchResult } from './types/search.types';
 
@@ -25,11 +16,6 @@ export class SlotsController {
     return this.slotsService.query(query);
   }
 
-  @Get('update-search-vectors')
-  updateSearchVectors() {
-    return this.slotsService.updateAllSearchVectors();
-  }
-
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.slotsService.findOne(+id);
@@ -38,5 +24,10 @@ export class SlotsController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.slotsService.remove(+id);
+  }
+
+  @Get('update-elasticsearch')
+  updateElasticsearch() {
+    return this.slotsService.updateElasticsearch();
   }
 }

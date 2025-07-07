@@ -8,6 +8,7 @@ import { HuntsModule } from './hunts/hunts.module';
 import { DiscordModule } from './discord/discord.module';
 import { TasksModule } from './tasks/tasks.module';
 import { getDatabaseConfig } from './config/database.config';
+import { ElasticModule } from './elastic/elastic.module';
 
 @Module({
   imports: [

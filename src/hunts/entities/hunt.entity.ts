@@ -14,6 +14,9 @@ export class Hunt {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Column({ default: 'Unnamed Hunt' })
+  name: string;
+
   @Index()
   @Column()
   discordChannelId: string;

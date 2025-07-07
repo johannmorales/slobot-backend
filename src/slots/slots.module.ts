@@ -3,10 +3,10 @@ import { SlotsService } from './slots.service';
 import { SlotsController } from './slots.controller';
 import { Slot } from './entities/slot.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ElasticsearchModule } from '@nestjs/elasticsearch';
+import { ElasticModule } from 'src/elastic/elastic.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Slot])],
+  imports: [TypeOrmModule.forFeature([Slot]), ElasticModule],
   controllers: [SlotsController],
   providers: [SlotsService],
   exports: [SlotsService],

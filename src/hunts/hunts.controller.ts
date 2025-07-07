@@ -7,24 +7,27 @@ import {
   Param,
   Delete,
   Put,
+  Query,
 } from '@nestjs/common';
 import { HuntsService } from './hunts.service';
 import { ReorderBonusesDto } from './dto/reorder-bonuses.dto';
 import { UpdateBonusStatusDto } from './dto/update-bonus-status.dto';
 import { AddBonusDto } from './dto/add-bonus.dto';
+import { PaginationDto } from './dto/pagination.dto';
+import { CreateHuntDto } from './dto/create-hunt.dto';
 
 @Controller('hunts')
 export class HuntsController {
   constructor(private readonly huntsService: HuntsService) {}
 
   @Post()
-  create() {
-    return this.huntsService.create('s');
+  create(@Body() createHuntDto: CreateHuntDto) {
+    return this.huntsService.create(createHuntDto);
   }
 
   @Get()
-  findAll() {
-    return this.huntsService.findAll();
+  findAll(@Query() paginationDto: PaginationDto) {
+    return this.huntsService.findAll(paginationDto);
   }
 
   @Get('/active')

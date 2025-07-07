@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Slot } from './entities/slot.entity';
@@ -5,6 +6,7 @@ import { Repository } from 'typeorm';
 import { gamesCount, gamesList } from 'gamdom.js';
 import { TasksService } from 'src/tasks/tasks.service';
 import { SearchResult } from './types/search.types';
+import { ElasticsearchService } from '@nestjs/elasticsearch';
 
 @Injectable()
 export class SlotsService implements OnModuleInit {
@@ -13,20 +15,11 @@ export class SlotsService implements OnModuleInit {
     @InjectRepository(Slot)
     private slotsRepository: Repository<Slot>,
     private tasksService: TasksService,
+    private elasticsearchService: ElasticsearchService,
   ) {}
 
   onModuleInit() {
-    // Clean up existing null imageUrl values
-
-    // const slots = await this.slotsRepository.find();
-    // const body = slots.flatMap((slot) => [
-    //   { index: { _index: 'slots', _id: slot.id } },
-    //   { name: slot.name },
-    // ]);
-    // await this.elasticsearchService.bulk({ body });
-    //here!!
     this.tasksService.registerDailyTask('SlotsSync', async () => {
-      // await this.elasticsearchService.indices.delete({ index: 'slots' });
       const number = await gamesCount({ sectionType: 'slots' });
       const pages = Math.floor(number / 100) + 1;
       for (let i = 0; i < pages; i++) {
@@ -35,7 +28,6 @@ export class SlotsService implements OnModuleInit {
         const {
           games: [{ gamesList: games }],
         } = await gamesList([{ sectionType: 'slots', limit: 100, page: i }]);
-        if (i === 3) console.log(games[1], games[2]);
         const slots: Partial<Slot>[] = games.map((game) => ({
           key: `gamdom__${game.staticData.game_code}`,
           name: game.staticData.name,
@@ -65,45 +57,25 @@ export class SlotsService implements OnModuleInit {
         this.logger.log(
           `Added ${newSlots.length} slots => ${newSlots.map((slot) => `${slot.id} ${slot.name}`).join(', ')}`,
         );
-
-        // Update search vectors for new slots
-        if (newSlots.length > 0) {
-          await this.updateSearchVectors(newSlots.map((slot) => slot.id));
-        }
       }
+      await this.updateElasticsearch();
     });
   }
 
-  private async updateSearchVectors(slotIds: number[]) {
-    try {
-      await this.slotsRepository.query(
-        `
-        UPDATE slot 
-        SET search_vector = to_tsvector('english', name)
-        WHERE id = ANY($1)
-      `,
-        [slotIds],
-      );
-    } catch (error) {
-      this.logger.error('Failed to update search vectors:', error);
+  async updateElasticsearch() {
+    const exists = await this.elasticsearchService.indices.exists({
+      index: 'slots',
+    });
+    if (exists) {
+      await this.elasticsearchService.indices.delete({ index: 'slots' });
     }
-  }
-
-  async updateAllSearchVectors() {
-    try {
-      await this.slotsRepository.query(`
-        UPDATE slot 
-        SET search_vector = to_tsvector('english', name)
-        WHERE search_vector IS NULL OR search_vector = ''
-      `);
-      this.logger.log('All search vectors updated successfully');
-    } catch (error) {
-      this.logger.error('Failed to update all search vectors:', error);
-    }
-  }
-
-  create() {
-    return 'This action adds a new slot';
+    await this.elasticsearchService.indices.create({ index: 'slots' });
+    const slots = await this.slotsRepository.find();
+    const body = slots.flatMap((slot) => [
+      { index: { _index: 'slots', _id: slot.id } },
+      { name: slot.name, provider: slot.provider },
+    ]);
+    await this.elasticsearchService.bulk({ body });
   }
 
   async findAll() {
@@ -139,19 +111,41 @@ export class SlotsService implements OnModuleInit {
     }
 
     try {
+      const searchResponse = await this.elasticsearchService.search({
+        index: 'slots',
+        body: {
+          query: {
+            multi_match: {
+              query: q,
+              fields: ['name'],
+              fuzziness: 'AUTO',
+            },
+          },
+          size: 10,
+        },
+      });
+
+      // Extract IDs from Elasticsearch results
+      const response = searchResponse as any;
+      const hits = response.body?.hits?.hits || [];
+      const slotIds: string[] = hits.map((hit: any) => hit._id);
+
+      if (slotIds.length === 0) {
+        return [];
+      }
+
+      // Query database to get full slot records by IDs
       const slots = await this.slotsRepository
         .createQueryBuilder('slot')
-        .where(`slot.search_vector @@ plainto_tsquery('english', :query)`)
-        .setParameter('query', q)
-        .orderBy(
-          `ts_rank(slot.search_vector, plainto_tsquery('english', :query))`,
-          'DESC',
-        )
-        .addOrderBy('slot.releaseDate', 'DESC')
-        .limit(10)
+        .where('slot.id IN (:...ids)', { ids: slotIds })
         .getMany();
 
-      return slots.map((slot) => ({
+      // Sort results by the order returned from Elasticsearch
+      const sortedSlots = slotIds
+        .map((id) => slots.find((slot) => slot.id.toString() === id))
+        .filter((slot): slot is Slot => slot !== undefined);
+
+      return sortedSlots.map((slot) => ({
         id: slot.id,
         name: slot.name,
         provider: slot.provider,

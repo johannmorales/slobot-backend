@@ -28,6 +28,6 @@ import { ListCommand } from './commands/list.command';
     }),
     HuntsModule,
   ],
-  providers: [DiscordGateway, HuntCommand, ListCommand],
+  providers: [DiscordGateway, ListCommand],
 })
 export class DiscordModule {}

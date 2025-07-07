@@ -15,7 +15,7 @@ export const getDatabaseConfig = (
     namingStrategy: new SnakeNamingStrategy(),
     entities: [join(__dirname, '..', '**', '*.entity.{js,ts}')],
     synchronize: !isProduction,
-    logging: !isProduction,
+    logging: false,
     ...(isProduction && {
       ssl: {
         rejectUnauthorized: false,

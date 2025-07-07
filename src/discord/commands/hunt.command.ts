@@ -4,7 +4,7 @@ import {
   IA,
   InjectDiscordClient,
 } from '@discord-nestjs/core';
-import { Client, CommandInteraction, MessageFlags } from 'discord.js';
+import { Client } from 'discord.js';
 import { Injectable, Logger } from '@nestjs/common';
 import { SlashCommandPipe } from '@discord-nestjs/common';
 import { BonusDto } from './bonus.dto';
@@ -23,18 +23,4 @@ export class HuntCommand {
     private readonly client: Client,
     private readonly huntsService: HuntsService,
   ) {}
-
-  @Handler()
-  async onHunt(@IA() interaction: CommandInteraction) {
-    await interaction.deferReply({
-      flags: MessageFlags.Ephemeral,
-    });
-
-    await this.huntsService.create(interaction.channelId);
-
-    await interaction.followUp({
-      content: 'Started hunt',
-      flags: MessageFlags.Ephemeral,
-    });
-  }
 }
