@@ -16,18 +16,13 @@ export class SlotsController {
     return this.slotsService.query(query);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.slotsService.findOne(+id);
+  @Get('update-elasticsearch')
+  updateElasticsearch() {
+    return this.slotsService.updateElasticsearch();
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.slotsService.remove(+id);
-  }
-
-  @Get('update-elasticsearch')
-  updateElasticsearch() {
-    return this.slotsService.updateElasticsearch();
   }
 }
